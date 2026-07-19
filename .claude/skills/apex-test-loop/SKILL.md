@@ -120,9 +120,13 @@ Se o nome nao foi dado, pergunte qual classe cobrir.
 ## Passo 0 — Contexto e SEGURANCA (rodar UMA vez)
 
 **Memoria de estado (PRIMEIRA acao):** verifique se existe
-`.claude/apex-test-loop/state/<Classe>.md` no projeto (veja `references/run-state.md`).
+`<projeto>/.apex-test-loop/state/<Classe>.md` — caminho **neutro de ferramenta** (na
+raiz do projeto, fora de `.claude`/`.opencode`, para Claude Code e OpenCode lerem o
+MESMO estado; veja `references/run-state.md`).
 - Existe com `status: em_andamento`/`pausado_bloqueado` → **resuma ao usuario onde
   parou e RETOME dali** (nao recomece do zero, salvo pedido explicito).
+- Achou estado antigo em `.claude/apex-test-loop/state/` ou `.opencode/**/state/` →
+  **mova** para o caminho neutro e siga dali (nunca mantenha dois silos).
 - Nao existe → crie a partir do template antes da primeira iteracao.
 
 **Checagem de seguranca (obrigatoria):** rode `git status`; a classe de producao e
@@ -343,12 +347,24 @@ Boas praticas em ambos os modos: `@TestSetup`; `Test.startTest()/stopTest()`;
   - **Limitacoes de cobertura**: linhas/ramos inalcancaveis NESTE ambiente e por que
     (feature desabilitada, Flow ativo, config ausente), para o usuario decidir.
 
-## Fase de retrospectiva (autoaprendizado da skill)
+## Fase de retrospectiva (autoaprendizado)
 
-No **fim de cada run** (sucesso OU parada), reflita: *o que nesta skill me atrapalhou?*
-**So registre proposta quando houve FRICCAO REAL** (guard bloqueou algo legitimo,
+> A retrospectiva e um passo de **reflexao** — nao existe script para ela (nao rode
+> nem invente um `apex-retrospective.mjs`; e voce lendo o run e escrevendo Markdown).
+
+No **fim de cada run** (sucesso OU parada), reflita e direcione o aprendizado ao
+ledger CERTO — sao dois, com propositos distintos:
+
+| O que voce aprendeu | Onde registrar | Formato |
+|---|---|---|
+| Friccao com **a propria skill** (guard travou algo legitimo, delegacao confusa, passo faltando, comando `sf` errado) | `RECOMMENDATIONS.md` (local da skill) | `R-XXXX` 🟡 Proposta |
+| **Padrao de teste agnostico** util para QUALQUER classe futura (categoria de linha inalcancavel, meta realista por tipo, armadilha recorrente) | `docs/apex-test-loop-recommendations.md` (raiz, versionado) | `P-XXXX` — veja `references/contribution-guidelines.md` |
+
+**So registre quando houve FRICCAO/APRENDIZADO REAL** (guard bloqueou algo legitimo,
 dependencia travou, muitas iteracoes, decisao humana por ambiguidade, delegacao
-faltando/confusa, comando `sf` errado). **Em run limpo, nao registre nada.**
+faltando/confusa, comando `sf` errado, padrao que vai se repetir). **Em run limpo,
+nao registre nada** — ruido e pior que silencio. Nunca cite uma classe especifica num
+`P-XXXX`: o padrao tem que servir para as proximas.
 
 **EXCECAO — friccao GRAVE registra NA HORA, nao no fim** (aprendido em campo: num
 run longo "ate 99%", o fim pode demorar dezenas de iteracoes e o detalhe se perde

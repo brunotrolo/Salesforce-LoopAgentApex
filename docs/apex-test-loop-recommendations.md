@@ -18,6 +18,8 @@ Veja `.claude/skills/apex-test-loop/RECOMMENDATIONS.md` (detalhado). Resumo:
 | R-0014 | ✅ | bypassPermissions mode | settings.json |
 | R-0015 a R-0021 | ✅ | Runtime blockers, fan-out, checkpoint | SKILL.md, parallel-methods.md |
 | R-0022 a R-0027 | ✅ | MVP deployable default, circuit-breaker, autonomia, benchmark | SKILL.md, runtime-blockers.md |
+| R-0028 | ✅ | Caminho neutro do state (Claude Code × OpenCode) | run-state.md, SKILL.md |
+| R-0029 | ✅ | Centralizar padrões agnósticos em docs/ + split de ledgers | docs/, SKILL.md, contribution-guidelines.md |
 
 ---
 
@@ -114,7 +116,7 @@ public class TokenAwareCalloutMock implements HttpCalloutMock {
    ```
 3. **Métodos auxiliares nomeados:**
    ```apex
-   private static String buildInvoiceDetailJson(List<Map<String, Object>> items) { ... }
+   private static String buildResponseJson(List<Map<String, Object>> items) { ... }
    ```
 
 **Recomendação:** Usar builders em `.../classes/` compartilhadas; StaticResource só se >200 linhas.
@@ -152,12 +154,12 @@ public class FlexibleHttpCalloutMock implements HttpCalloutMock {
 **Estratégia:**
 ```apex
 // ❌ Ruim
-private static void testGetFatura() { ... }
+private static void testProcessRecords() { ... }
 
 // ✅ Bom
-private static void testGetFatura_SuccessWithMultipleTransactions() { ... }
-private static void testGetFatura_EmptyTransactionList() { ... }
-private static void testGetFatura_NetworkTimeoutRecovery() { ... }
+private static void testProcessRecords_SuccessWithMultipleItems() { ... }
+private static void testProcessRecords_EmptyInputList() { ... }
+private static void testProcessRecords_CalloutTimeoutRecovery() { ... }
 ```
 
 **Padrão:** `test<MethodName>_<Scenario>` onde `<Scenario>` = branch/edge case/error.
@@ -237,18 +239,23 @@ Avaliar no Passo 0 e re-pacuar a meta:
 **Padrão:** Sem checkpoint, cada retomada gera do zero; com checkpoint duplicado, divergências obrigam remedir.
 
 **Estratégia:**
-- ✅ UM arquivo canonico por classe: `state/<Classe>.md`
-- ✅ Histórico de iterações DENTRO do arquivo (não -Copia, -v2, etc)
-- ✅ Passo 0 verifica; se houver múltiplos, PARA e pergunta qual é válido
+- ✅ Caminho NEUTRO de ferramenta: `<projeto>/.apex-test-loop/state/<Classe>.md`
+  (raiz do projeto, **fora** de `.claude`/`.opencode`) — ferramentas diferentes
+  (Claude Code, OpenCode) leem/escrevem o MESMO estado, sem silos.
+- ✅ UM arquivo canonico por classe (não -Copia, -v2, etc)
+- ✅ Histórico de iterações DENTRO do arquivo
+- ✅ Passo 0 verifica; se houver múltiplos ou estado antigo sob `.claude`/`.opencode`,
+  move para o caminho neutro e segue de um só
 - ✅ Passo 4 atualiza no fim de cada iteração (cobertura, linhas descobertas, decisões)
 
-**Recomendação:** Automatizar check no Passo 0 (R-0022 já implementado).
+**Recomendação:** Automatizar check no Passo 0 (R-0022 implementado; caminho neutro
+padronizado em `references/run-state.md`).
 
 ---
 
 ## Seção 3: Anti-Padrões (O Que Nunca Fazer)
 
-Aprendidos da experiência real (CaseHandler, invoiceSummary_ctr, etc).
+Aprendidos de execuções reais — aplicáveis a qualquer classe.
 
 ### A-0001 — Try/Catch de Fachada Engolindo Erros de Produção
 
@@ -345,4 +352,4 @@ Quando rodar a skill `apex-test-loop` em uma classe:
 ---
 
 **Atualizado em:** 2026-07-19  
-**Versão:** 1.0 (consolidado de 27 recomendações da skill + 10 padrões de campo)
+**Versão:** 1.1 (29 recomendações da skill + 10 padrões de campo + 5 anti-padrões)
