@@ -36,28 +36,26 @@ escrever teste  →  deploy (sf)  →  rodar teste + cobertura  →  ler linhas 
 
 ---
 
-## Rodar no OpenCode com DeepSeek (barato, sem GPU)
+## Rodar no OpenCode com DeepSeek Flash (free)
 
-O **[OpenCode](https://opencode.ai)** é um CLI de agente open-source que lê o **mesmo** `.claude/skills/` — a skill funciona igual. Com a API da **[DeepSeek](https://platform.deepseek.com)** (qualidade de ponta a uma fração do custo de Claude/GPT), você roda o loop **sem GPU e sem baixar modelo**. Este é o mínimo viável, do zero:
+O **[OpenCode](https://opencode.ai)** é um CLI de agente open-source que lê o **mesmo** `.claude/skills/` — a skill funciona igual. Ele já traz o **DeepSeek V4 Flash Free** via **OpenCode Zen**: um modelo **grátis, sem API key e sem GPU**. É o jeito mais barato de rodar o loop. Do zero:
 
 **1. Instale o OpenCode** (precisa Node 18+):
 ```bash
 npm install -g opencode-ai
 ```
 
-**2. Pegue uma API key da DeepSeek:** crie a conta em **[platform.deepseek.com](https://platform.deepseek.com/api_keys)** e gere uma key.
-
-**3. Conecte o DeepSeek ao OpenCode.** Abra o app na pasta do seu projeto (onde está o `.claude/`):
+**2. Abra na pasta do seu projeto** (onde está o `.claude/`) e escolha o modelo free:
 ```bash
 opencode
 ```
-Dentro do app, digite `/connect`, escolha **`deepseek`**, cole a API key e selecione o modelo **DeepSeek-V4-Pro** (ou **V4-Flash**, mais barato pras classes simples).
+Dentro do app, abra o seletor de modelos (`/models`) e escolha **DeepSeek V4 Flash Free** (grupo **OpenCode Zen**). Não precisa de key nem login.
 
-**4. Use igual ao Claude Code:** `/apex-test-loop AccountService` ou em linguagem natural.
+**3. Use igual ao Claude Code:** `/apex-test-loop AccountService` ou em linguagem natural.
 
-> **Modelos (jul/2026):** use os IDs **V4-Pro** / **V4-Flash** direto — os nomes antigos `deepseek-chat` e `deepseek-reasoner` estão sendo aposentados (param de resolver após 24/07/2026).
+> **É promocional:** o tier free do DeepSeek V4 Flash no OpenCode Zen é "por tempo limitado" — pode mudar. Se sumir, dá pra apontar o OpenCode pra API paga da DeepSeek (com key) ou pro plano OpenCode Go. O modelo free tem janela de 200K de contexto, de sobra pro loop.
 
-> **Ressalva honesta:** DeepSeek é forte e barato, mas ainda erra mais que o Claude em Apex — pode alucinar flags do `sf` ou desistir cedo do loop. Por isso a skill tem os **fallbacks** e as **travas** documentados aqui. Para as classes mais difíceis, o Claude Code entrega com menos idas e vindas; o OpenCode+DeepSeek brilha no custo baixo e nas classes de complexidade baixa/média.
+> **Ressalva honesta:** DeepSeek Flash é rápido e grátis, mas erra mais que o Claude em Apex — pode alucinar flags do `sf` ou desistir cedo do loop. Por isso a skill tem os **fallbacks** e as **travas** documentados aqui. Para as classes mais difíceis, o Claude Code entrega com menos idas e vindas; o OpenCode+DeepSeek Flash brilha no custo zero e nas classes de complexidade baixa/média.
 
 ---
 

@@ -44,12 +44,12 @@ Voce informa uma classe → o Claude entra num ciclo fechado ate atingir a meta 
 - Node 18+
 - Projeto SFDX com `force-app/*/classes/`
 
-> **Opcional — rodar com [OpenCode](https://opencode.ai) + [DeepSeek](https://platform.deepseek.com)** (barato, sem GPU):
+> **Opcional — rodar de graça com [OpenCode](https://opencode.ai)** (sem key, sem GPU):
 > ```bash
 > npm install -g opencode-ai
-> opencode   # no app: /connect → deepseek → cole a API key → escolha DeepSeek-V4-Pro
+> opencode   # no app: /models → escolha "DeepSeek V4 Flash Free" (OpenCode Zen)
 > ```
-> [Pegue a API key aqui](https://platform.deepseek.com/api_keys). A skill funciona igual no OpenCode (mesmo `.claude/skills/`). **[Passo a passo em Informações](./INFORMACOES.md#rodar-no-opencode-com-deepseek-barato-sem-gpu)**.
+> Modelo grátis já embutido, sem API key nem login. A skill funciona igual no OpenCode (mesmo `.claude/skills/`). **[Detalhes em Informações](./INFORMACOES.md#rodar-no-opencode-com-deepseek-flash-free)**.
 
 ### 2. Instale — UM comando
 
