@@ -38,7 +38,7 @@ git clone --depth 1 https://github.com/brunotrolo/Salesforce-LoopAgentApex.git .
 git clone --depth 1 https://github.com/brunotrolo/Salesforce-LoopAgentApex.git .skill-tmp && mkdir -p .claude && cp -r .skill-tmp/.claude/. .claude/ && rm -rf .skill-tmp
 ```
 
-> **Para atualizar:** rode o mesmo comando de novo. Para mais detalhes (alternativas, contribuir melhorias), veja [DOCUMENTATION.md](./DOCUMENTATION.md).
+> **Para atualizar:** rode o mesmo comando de novo. Para mais detalhes (alternativas, contribuir melhorias), veja [INFORMACOES-COMPLEMENTARES.md](./INFORMACOES-COMPLEMENTARES.md).
 
 ### 3. Abra o Claude Code
 
@@ -71,7 +71,7 @@ Ele ensina passo a passo e pede sua confirmacao.
 
 ## 🔒 Seguranca
 
-A skill **nunca mexe na classe de producao** — bloqueio em 3 camadas (instrucoes, regras deny, hook). Apagar/sobrescrever producao é impossivel mesmo em modo bypass. Detalhes em [DOCUMENTATION.md](./DOCUMENTATION.md).
+A skill **nunca mexe na classe de producao** — bloqueio em 3 camadas (instrucoes, regras deny, hook). Apagar/sobrescrever producao é impossivel mesmo em modo bypass. Detalhes em [INFORMACOES-COMPLEMENTARES.md](./INFORMACOES-COMPLEMENTARES.md).
 
 ---
 
@@ -79,7 +79,7 @@ A skill **nunca mexe na classe de producao** — bloqueio em 3 camadas (instruco
 
 Para tudo o mais (travas de seguranca, modo bypass, estrutura, memoria de estado, autoaprendizado, contribuir de volta, troubleshooting), veja:
 
-**→ [DOCUMENTATION.md](./DOCUMENTATION.md)**
+**→ [INFORMACOES-COMPLEMENTARES.md](./INFORMACOES-COMPLEMENTARES.md)**
 
 Inclui:
 - Skills oficiais importadas
