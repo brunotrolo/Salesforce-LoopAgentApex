@@ -19,7 +19,7 @@ Referência detalhada da skill. Para o começo rápido (2 min), veja o **[README
 Arquitetura **hibrida**:
 
 - **Craft (o "como" fazer)** vem das **skills oficiais da Salesforce** (`forcedotcom/sf-skills`, Apache-2.0) importadas neste projeto — mocks, asserts, data factory, bulk, async, DML, objetos/campos, debug de logs.
-- **Orquestracao (o nosso valor)** e a skill **`apex-test-loop`**: o **agent loop** de cobertura, as **travas de seguranca**, o **modo guiado em portugues** e o **modo scaffold** (dev/treino).
+- **Orquestracao (o nosso valor)** e a skill **`apex-test-loop`**: o **agent loop multiagente** de cobertura, as **travas de seguranca**, o **modo guiado em portugues** e o **modo scaffold** (dev/treino).
 
 ```
 escrever teste  →  deploy (sf)  →  rodar teste + cobertura  →  ler linhas nao cobertas
@@ -33,6 +33,31 @@ escrever teste  →  deploy (sf)  →  rodar teste + cobertura  →  ler linhas 
 - **Dois niveis de qualidade.** Padrao = **MVP deployavel** (cobertura + testes passando + portabilidade; asserts so quando baratos/estaveis — menos falhas entre ambientes). Opcional = **`--rigoroso`** (assert de valor exato com mensagem em todo metodo).
 - **Sinal deterministico.** Um script auxiliar (`scripts/apex-coverage.mjs`) roda o teste, faz o parse do JSON do `sf` e devolve **exatamente as linhas nao cobertas**.
 - **Seguranca contra acoes destrutivas (3 camadas).** A `apex-test-loop` so cria/edita a classe de TESTE. Apagar/mover/deletar producao e **bloqueio duro** (`deny` + hook); **sobrescrever** producao **pede aprovacao** (`ask`).
+
+---
+
+## Arquitetura V2 — orquestração multiagente
+
+A partir da v2, o loop deixou de ser uma skill monolítica e virou **1 orquestrador 100% autônomo + 4 subagentes especialistas** (`.claude/agents/`). Toda regra de negócio (meta, critério de conclusão, travas) vive numa **fonte única** — `.claude/skills/apex-test-loop/references/loop-rules.md` — lida por todos os agentes, para não haver deriva de regra entre eles.
+
+| Agente | Papel |
+|---|---|
+| `apex-orchestrator` | Coordena o ciclo fechado, **100% autônomo**, único que decide parar/continuar |
+| `apex-test-writer` | Escreve/ajusta `<Classe>Test.cls` (delega craft às skills oficiais); nunca toca produção |
+| `apex-deploy-runner` | Deploy + roda teste + devolve cobertura (JSON determinístico da ORG) |
+| `apex-coverage-analyst` | Interpreta o resultado e decide continuar/concluído/bloqueado (regra do platô, circuit-breaker) |
+| `apex-state-recorder` | Único agente que grava checkpoint e aprendizado — allowlist fechada de 4 caminhos |
+
+### Dois portões de conclusão
+
+O orquestrador só declara `concluido` depois de **dois portões objetivos**, medidos sempre na ORG real (nunca estimados):
+
+- **Portão 1** (a cada iteração, rápido): `sf apex run test` retorna `coveredPercent >= 99` **e** `failures == []` **e** `slowTests == []`.
+- **Portão 2** (UMA vez, só quando o Portão 1 é atingido): confirmação oficial via `sf project deploy validate --test-level RunSpecifiedTests` (check-only, não grava nada na org) — o **mesmo gate que um deploy real de produção** usa. Só conclui com `deployWouldSucceed == true` **e** `coveredPercent >= 99` **e** `failures == []`.
+
+Por que dois portões: iterar a cada rodada com `deploy validate` seria caro e lento; `apex run test` já dá o sinal certo para dirigir o loop. Mas quem decide se a classe **realmente deployaria** é o `deploy validate` — por isso ele entra como confirmação final, uma única vez.
+
+Se o Portão 2 falhar mesmo com o Portão 1 tendo passado (ex.: cobertura agregada da org abaixo do mínimo, dependência ausente), o loop **não conclui** — volta a `continuar` com o motivo revelado pelo `validateError`, ou para em `bloqueado` se for decisão do humano.
 
 ---
 
@@ -154,20 +179,28 @@ O bloqueio por texto e forte para comandos diretos, mas nao e uma fronteira abso
 ## Estrutura
 
 ```
+.claude/agents/                     # V2: orquestrador + 4 subagentes especialistas
+  apex-orchestrator.md              # coordena o ciclo, 100% autonomo, decide parar/continuar
+  apex-test-writer.md               # escreve/ajusta <Classe>Test.cls
+  apex-deploy-runner.md             # deploy + roda teste + devolve cobertura (JSON)
+  apex-coverage-analyst.md          # interpreta resultado, decide continuar/concluido/bloqueado
+  apex-state-recorder.md            # unico agente com escrita fora da classe de teste
+
 .claude/skills/
-  apex-test-loop/                   # A NOSSA skill (orquestracao)
-    SKILL.md                        # o loop, delegacao, regras de ouro, parada
+  apex-test-loop/                   # A NOSSA skill (porta de entrada)
+    SKILL.md                        # trigger + tabela de agentes + referencias (enxuto, aponta ao orquestrador)
     RECOMMENDATIONS.md              # livro-razao de autoaprendizado
     scripts/
-      apex-coverage.mjs             # deploy + run test + parse -> JSON com linhas nao cobertas
-      guard.mjs                     # hook PreToolUse: deny destrutivo / ask sobrescrita de producao
+      apex-coverage.mjs             # deploy + run test (+ modo --validate) + parse -> JSON com linhas nao cobertas
+      guard.mjs                     # hook PreToolUse: deny destrutivo / ask sobrescrita de producao / allowlist do state-recorder
     references/
+      loop-rules.md                 # FONTE UNICA de regras de negocio (meta, dois portoes, travas)
       run-state.md                  # memoria de estado: checkpoint por classe (retomar o loop)
       runtime-blockers.md           # falha por causa da ORG (Flow/config/limites): o que (nao) fazer
       parallel-methods.md           # classes grandes: fan-out por metodo com autoria paralela/deploy sequencial
       guided-mode.md                # roteiro do modo guiado (para leigos, PT)
       scaffolding-dependencies.md   # orquestracao do scaffold dev (__c/__mdt/classes)
-      sf-cli-and-coverage.md        # comandos sf crus (deploy/run/cobertura) + fallback quando o script falha
+      sf-cli-and-coverage.md        # comandos sf crus (deploy/run/cobertura/validate) + fallback quando o script falha
       contribution-guidelines.md    # como registrar aprendizados (R-XXXX)
       apex-test-loop-recommendations.md  # banco de dados de padroes descobertos
       quality-checklist.md          # checklist final antes de marcar "done"
@@ -184,7 +217,7 @@ O bloqueio por texto e forte para comandos diretos, mas nao e uma fronteira abso
   VENDOR-sf-skills-LICENSE-Apache-2.0.txt
 ```
 
-O craft (mocks, asserts, data factory, bulk, async, DML) vive nas skills oficiais — por isso a nossa `apex-test-loop` ficou enxuta (so o loop + seguranca + guiado + scaffold).
+O craft (mocks, asserts, data factory, bulk, async, DML) vive nas skills oficiais — por isso a nossa `apex-test-loop` ficou enxuta (so o trigger + delegacao aos agentes). A logica de negocio em si (meta, portoes, travas) vive so em `loop-rules.md`; os agentes em `.claude/agents/` sao pura orquestracao/execucao.
 
 ---
 

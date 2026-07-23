@@ -549,7 +549,7 @@ existe tanto no repositorio-casa quanto na copia dentro do seu projeto Salesforc
   ("teste falhando"): esta camada pega o teste que **ainda nao falhou, mas vai**.
 
 ### R-0037 — V2: arquitetura multiagente (orquestrador + 4 especialistas)
-- **Status:** 🟡 Proposta (planejada com o usuario, aguardando homologacao na branch V2)
+- **Status:** 🟡 Proposta (mergeada na `main` via PR #25, aguardando homologacao end-to-end numa org real)
 - **Data:** 2026-07-23
 - **Gatilho:** o `SKILL.md` unico concentrava orquestracao + regras de negocio + craft,
   crescendo para 550+ linhas e tornando dificil auditar/testar cada responsabilidade
@@ -584,13 +584,12 @@ existe tanto no repositorio-casa quanto na copia dentro do seu projeto Salesforc
      `-Copia`/`-backup`/diretorios novos dentro de `.apex-test-loop/`).
   6. `.apex-test-loop/` adicionado ao `.gitignore` do template do projeto (estado
      local, nunca versionado — mesma logica do `RECOMMENDATIONS.md`).
-- **Proximo passo:** homologar na branch `claude/apex-test-loop-v2` (deploy real numa
-  org de teste, rodando pelo menos uma classe do zero e uma retomada de estado) antes
-  de mergear com `main`. Se a homologacao confirmar o comportamento, mover status para
-  `✅ Aplicada`.
+- **Proximo passo:** homologar em `main` (deploy real numa org de teste, rodando pelo
+  menos uma classe do zero, uma retomada de estado, e um cenario de bloqueio). Se a
+  homologacao confirmar o comportamento, mover status para `✅ Aplicada`.
 
 ### R-0038 — V2: Portão 2 de conclusão via `deploy validate` (deployabilidade oficial)
-- **Status:** 🟡 Proposta (planejada com o usuario na branch V2, aguardando homologacao)
+- **Status:** 🟡 Proposta (mergeada na `main` via PR #25, aguardando homologacao end-to-end numa org real)
 - **Data:** 2026-07-23
 - **Gatilho:** os devs do projeto do usuario validam a classe no ambiente com
   `sf project deploy validate --target-org <org> --metadata "ApexClass:X" "ApexClass:X_tst"
@@ -618,8 +617,8 @@ existe tanto no repositorio-casa quanto na copia dentro do seu projeto Salesforc
      o fluxo de dois portões (quem roda o `--validate`, quando, e como ler o resultado).
   4. `SKILL.md` e `references/sf-cli-and-coverage.md` documentam o comando `deploy
      validate` e por que ele e check-only/seguro incluir a producao no payload.
-- **Proximo passo:** homologar junto com R-0037 na branch `claude/apex-test-loop-v2` —
-  rodar o Portão 2 real numa org e confirmar que `deployWouldSucceed`/`validateError`
-  sao lidos corretamente. Se confirmar, mover para `✅ Aplicada`.
+- **Proximo passo:** homologar junto com R-0037 em `main` — rodar o Portão 2 real numa
+  org e confirmar que `deployWouldSucceed`/`validateError` sao lidos corretamente.
+  Se confirmar, mover para `✅ Aplicada`.
 
 <!-- A skill anexa novas propostas ABAIXO desta linha, como R-0039, R-0040... -->

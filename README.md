@@ -22,17 +22,25 @@
 
 Arquitetura **hibrida** para o Claude Code criar **classes de teste Apex** no **minimo viavel deployavel**: meta padrao `>= 99%` de cobertura com **todos os testes passando** (o que Salesforce exige para deploy). Quer verificacao exaustiva? Use `--rigoroso`.
 
+**V2 — orquestração multiagente:** um `apex-orchestrator` 100% autônomo coordena 4 subagentes especialistas (escrever, deploy, analisar, gravar estado) em ciclo fechado, ate bater os **dois portões de conclusão**:
+
 ```
-escrever teste  →  deploy (sf)  →  rodar + cobertura  →  ler linhas nao cobertas
-      ↑                                                             ↓
-      +--- melhorar o cenario que falta, em loop até a meta --------+
+apex-test-writer  →  apex-deploy-runner  →  apex-coverage-analyst
+       ↑                                            ↓
+       +---------- prompt dirigido, em loop ---------+
+                          ↓
+     Portão 1 (>=99% via sf apex run test, a cada iteração)
+                          ↓
+     Portão 2 (confirmação oficial via sf project deploy validate, UMA vez)
+                          ↓
+                     concluído
 ```
 
 **Como funciona:**
 - **Craft** (mocks, asserts, bulk, DML, dados de teste) → skills oficiais Salesforce importadas neste projeto.
-- **Orquestracao** (loop inteligente, travas de seguranca, guiado em PT, scaffold) → nossa `apex-test-loop`.
+- **Orquestracao** (loop multiagente, travas de seguranca, guiado em PT, scaffold) → nossa `apex-test-loop`, coordenada pelo `apex-orchestrator` e seus 4 subagentes em `.claude/agents/`.
 
-Voce informa uma classe → o Claude entra num ciclo fechado ate atingir a meta com testes passando. Se travar, ele diagnostica e explica.
+Voce informa uma classe → o orquestrador entra num ciclo fechado ate atingir a meta com testes passando **e** a confirmação oficial de deployabilidade (`deploy validate`). Se travar, ele diagnostica e explica.
 
 ---
 
