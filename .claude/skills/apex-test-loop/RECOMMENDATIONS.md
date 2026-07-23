@@ -589,4 +589,37 @@ existe tanto no repositorio-casa quanto na copia dentro do seu projeto Salesforc
   de mergear com `main`. Se a homologacao confirmar o comportamento, mover status para
   `✅ Aplicada`.
 
-<!-- A skill anexa novas propostas ABAIXO desta linha, como R-0038, R-0039... -->
+### R-0038 — V2: Portão 2 de conclusão via `deploy validate` (deployabilidade oficial)
+- **Status:** 🟡 Proposta (planejada com o usuario na branch V2, aguardando homologacao)
+- **Data:** 2026-07-23
+- **Gatilho:** os devs do projeto do usuario validam a classe no ambiente com
+  `sf project deploy validate --target-org <org> --metadata "ApexClass:X" "ApexClass:X_tst"
+  --test-level RunSpecifiedTests --tests "X_tst"` e destacaram que, para deployar uma
+  classe, **o que prevalece e a COBERTURA** (nao "os testes passaram") — e que `deploy
+  validate` (check-only) e o gate real de deployabilidade.
+- **Problema:** o loop media conclusao so por `sf apex run test` (rapido, mas nao e o
+  veredito de "isso deployaria em producao?"). `apex run test` e `deploy validate` podem
+  divergir em casos de cobertura agregada da org; o numero que libera producao e o do
+  `validate`.
+- **Decisao do usuario (opcao 2, aprovada):** iterar rapido com `apex run test` a cada
+  iteracao (Portão 1) e rodar `deploy validate --test-level RunSpecifiedTests` UMA vez,
+  so quando o Portão 1 bater >=99%, como confirmacao oficial (Portão 2) antes de
+  declarar `concluido`. Nao rodar `validate` a cada iteracao (mais pesado).
+- **Melhoria aplicada:**
+  1. `scripts/apex-coverage.mjs` ganha o modo `--validate`: roda `sf project deploy
+     validate` (check-only, nao grava na org) incluindo producao + teste no `--metadata`,
+     com `--test-level RunSpecifiedTests --tests <TestClass>`, e emite
+     `{ phase:"validate", deployWouldSucceed, coveredPercent, uncoveredLines, failures,
+     validateError }`. Aditivo — nao muda o comportamento das iteracoes normais.
+  2. `references/loop-rules.md`: criterio de conclusao agora tem dois portões (1 rapido
+     por iteracao; 2 oficial uma vez ao final). So conclui com `deployWouldSucceed ==
+     true E coveredPercent >= 99 E failures == []`.
+  3. `apex-orchestrator`, `apex-deploy-runner` e `apex-coverage-analyst` atualizados para
+     o fluxo de dois portões (quem roda o `--validate`, quando, e como ler o resultado).
+  4. `SKILL.md` e `references/sf-cli-and-coverage.md` documentam o comando `deploy
+     validate` e por que ele e check-only/seguro incluir a producao no payload.
+- **Proximo passo:** homologar junto com R-0037 na branch `claude/apex-test-loop-v2` —
+  rodar o Portão 2 real numa org e confirmar que `deployWouldSucceed`/`validateError`
+  sao lidos corretamente. Se confirmar, mover para `✅ Aplicada`.
+
+<!-- A skill anexa novas propostas ABAIXO desta linha, como R-0039, R-0040... -->

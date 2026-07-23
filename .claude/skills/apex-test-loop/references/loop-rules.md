@@ -21,14 +21,44 @@ Se uma regra precisar mudar, muda-se **aqui**, uma vez só.
   try/catch de config) são aceitas como tática de portabilidade entre ambientes.
   Bulk 251+ é recomendado, não mandatório.
 
-## Critério de conclusão (único, objetivo)
+## Critério de conclusão (dois portões, ambos objetivos)
+
+**Portão 1 — iteração rápida (a cada rodada do loop):** medido com
+`sf apex run test` (barato, itera rápido):
 
 ```
 coveredPercent >= 99  E  failures == []  E  slowTests == []
 ```
 
-Sempre vindo do dado real devolvido pelo `apex-deploy-runner` na rodada corrente.
-Nenhum agente conclui por inferência, estimativa ou "parece que está pronto".
+**Portão 2 — confirmação oficial de deployabilidade (UMA vez, só ao bater o
+Portão 1):** o loop NÃO conclui direto no Portão 1. Quando o Portão 1 é atingido, o
+`apex-deploy-runner` roda a **validação oficial de deploy** — o mesmo gate que a
+Salesforce aplica a um deploy real de produção (cobertura é o que prevalece para
+deployar, não só "os testes passaram"):
+
+```bash
+node .claude/skills/apex-test-loop/scripts/apex-coverage.mjs \
+  --class <Classe> --test <Classe>Test --validate [--org <alias>] [--extra ...]
+```
+
+Isso executa `sf project deploy validate --test-level RunSpecifiedTests` — é
+**check-only** (simula o deploy inteiro e NÃO grava nada na org), incluindo a classe
+de produção + a de teste no `--metadata`. O loop só declara `concluido` quando:
+
+```
+deployWouldSucceed == true  E  coveredPercent >= 99  E  failures == []
+```
+
+vindo do `phase: "validate"`. Se o Portão 2 falhar (ex.: a cobertura agregada da org
+ficou abaixo do mínimo, ou uma dependência derruba a validação) apesar do Portão 1 ter
+passado, isso NÃO é conclusão — é `continuar`/`bloqueado`, e o motivo real vem em
+`validateError`.
+
+Rationale: `apex run test` é rápido para iterar, mas o veredito de "isso deployaria
+em produção?" é do `deploy validate`. Iterar com o primeiro e confirmar com o segundo
+dá velocidade nas iterações e a certeza real (o critério que a equipe usa) na
+conclusão. **Nunca** rodar `--validate` a cada iteração (é mais pesado) — só uma vez,
+ao final. Nenhum agente conclui por inferência, estimativa ou "parece que está pronto".
 
 ## Autonomia do orquestrador (V2)
 

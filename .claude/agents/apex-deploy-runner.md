@@ -20,13 +20,26 @@ interpreta o resultado, nao escreve teste, nao decide se o loop continua.
    ```
    `--test-only` é o padrão (deploya só a classe de teste); use `--deploy` apenas se a
    produção for nova/alterada nesta sessão (nunca sobrescrita — só criação de stub).
-3. Se o script falhar de um jeito que impeça rodar, use o fallback de comandos `sf`
+3. **Confirmação oficial de deployabilidade (Portão 2 — só quando pedido):** quando
+   o `apex-coverage-analyst` sinalizar que o Portão 1 foi atingido (`coveredPercent
+   >= 99`, sem falhas, sem testes lentos), rode a validação oficial UMA vez:
+   ```bash
+   node .claude/skills/apex-test-loop/scripts/apex-coverage.mjs \
+     --class <Classe> --test <Classe>Test --validate [--org <alias>] [--extra ...]
+   ```
+   Isso executa `sf project deploy validate --test-level RunSpecifiedTests`
+   (check-only, não grava nada na org) e devolve `phase: "validate"` com
+   `deployWouldSucceed`, `coveredPercent`, `uncoveredLines`, `failures`,
+   `validateError`. Devolva esse JSON bruto ao orquestrador/analyst. **Nunca** rode
+   `--validate` a cada iteração — é mais pesado; só uma vez, ao final, conforme
+   `loop-rules.md` (Portão 2).
+4. Se o script falhar de um jeito que impeça rodar, use o fallback de comandos `sf`
    crus documentado em `.claude/skills/apex-test-loop/references/sf-cli-and-coverage.md`
    — mas prefira sempre o script, que é a fonte determinística de sinal do loop.
-4. **Nunca trunque a saída** (nada de `tail`/`head` no resultado) — o
-   `apex-coverage-analyst` precisa do JSON completo, inclusive `deployErrors` quando
-   houver.
-5. Devolva o JSON bruto tal como veio, sem resumir/interpretar.
+5. **Nunca trunque a saída** (nada de `tail`/`head` no resultado) — o
+   `apex-coverage-analyst` precisa do JSON completo, inclusive `deployErrors`/
+   `validateError` quando houver.
+6. Devolva o JSON bruto tal como veio, sem resumir/interpretar.
 
 ## Nunca faca
 

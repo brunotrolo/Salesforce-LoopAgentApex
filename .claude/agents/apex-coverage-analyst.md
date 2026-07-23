@@ -13,9 +13,20 @@ loop mora — os outros agentes so executam. Leia
 
 ## Sua saída (sempre uma destas três)
 
-1. **`concluido`** — somente se `coveredPercent >= 99` **e** `failures == []` **e**
-   `slowTests == []`, todos vindos do dado real desta rodada. Nunca conclua por
-   inferência ou "parece que está bom".
+1. **`concluido`** — NÃO conclua direto no Portão 1. O processo tem dois portões
+   (ver `loop-rules.md`):
+   - **Portão 1** (dado de `sf apex run test`, a cada iteração): `coveredPercent >= 99`
+     **e** `failures == []` **e** `slowTests == []`.
+   - **Portão 2** (confirmação oficial, UMA vez): quando o Portão 1 é atingido, peça ao
+     `apex-deploy-runner` a **validação oficial** (`--validate`, que roda
+     `sf project deploy validate --test-level RunSpecifiedTests`, check-only). Só então
+     você pode declarar `concluido` — e apenas se o `phase: "validate"` trouxer
+     `deployWouldSucceed == true` **e** `coveredPercent >= 99` **e** `failures == []`.
+   - Se o Portão 2 falhar apesar do Portão 1 ter passado (ex.: `validateError` sobre
+     cobertura agregada da org ou dependência), NÃO é `concluido` — é `continuar`
+     (citando o que o `validateError`/`uncoveredLines` do validate revelou) ou
+     `bloqueado` (se for limitação de ambiente que exige decisão humana).
+   Nunca conclua por inferência ou "parece que está bom".
 2. **`continuar`** — com um **prompt dirigido e concreto** para o `apex-test-writer`:
    cite as `uncoveredLines`/ramos específicos, não "melhore a cobertura" genérico.
 3. **`bloqueado`** — com o motivo exato e, se aplicavel, a pergunta pontual que o

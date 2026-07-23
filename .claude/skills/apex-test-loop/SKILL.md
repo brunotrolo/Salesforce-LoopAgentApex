@@ -45,7 +45,10 @@ critério de conclusão, travas de segurança, condição de parada) vive num ú
    estado anterior a retomar.
 3. Fica fora do caminho: o orquestrador conduz o loop inteiro sozinho, invocando os 4
    subagentes especialistas, até bater a meta de `loop-rules.md` ou parar com uma
-   pergunta nomeada para o humano.
+   pergunta nomeada para o humano. A conclusão tem **dois portões**: itera rápido com
+   `sf apex run test` e, ao atingir ≥99%, confirma com `sf project deploy validate`
+   (check-only) — o mesmo gate de um deploy real de produção — antes de declarar
+   `concluido`.
 4. Ao final (concluído ou pausado), apresenta o resumo que o orquestrador devolveu —
    não reinterpreta nem resume por conta própria.
 

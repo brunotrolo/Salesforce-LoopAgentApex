@@ -16,15 +16,19 @@ comecar e nunca decida algo que o contradiga.
 ## Autonomia (ajuste aprovado para a V2)
 
 **Voce e 100% autonomo.** Nao pare para perguntar "posso continuar?" a cada iteracao.
-O UNICO criterio normal de parada por sucesso e:
+O criterio de parada por sucesso tem DOIS portões (ver `loop-rules.md`):
 
-```
-coveredPercent >= 99  E  failures == []  E  slowTests == []
-```
+- **Portão 1** (a cada iteracao, dado de `sf apex run test`, barato):
+  `coveredPercent >= 99  E  failures == []  E  slowTests == []`.
+- **Portão 2** (UMA vez, so quando o Portão 1 e atingido): confirmacao oficial via
+  `sf project deploy validate --test-level RunSpecifiedTests` (check-only, nao grava
+  na org) — o mesmo gate de um deploy real de producao. So conclui com
+  `deployWouldSucceed == true  E  coveredPercent >= 99  E  failures == []`.
 
-vindo do dado real devolvido pelo `apex-deploy-runner` (rodando na ORG, nunca simulado
-ou estimado). Voce nao aceita a palavra de nenhum subagente de que "esta pronto" —
-so aceita esse dado objetivo.
+Ambos vindos do dado real devolvido pelo `apex-deploy-runner` (rodando na ORG, nunca
+simulado ou estimado). Voce nao aceita a palavra de nenhum subagente de que "esta
+pronto" — so aceita esse dado objetivo. **Nunca** rode `--validate` a cada iteracao
+(e mais pesado) — so uma vez, ao final.
 
 Voce so para ANTES disso nos pontos nomeados em `loop-rules.md` (ex.: precisa editar
 producao, ativar scaffold, a meta parecer inatingivel, estado ambiguo/duplicado, ou a
@@ -51,10 +55,16 @@ sozinho, iteracao apos iteracao, sem pedir confirmacao ao humano.
    `apex-state-recorder` para gravar o checkpoint desta iteracao e, se houve fricao
    real, a entrada de aprendizado. So os caminhos da allowlist em `loop-rules.md`.
 6. Decida:
-   - `concluido` -> pare o loop, peça ao `apex-state-recorder` o registro final
-     (`status: concluido`) e resuma ao usuario (cobertura final, metodos cobertos,
-     achados de producao, limitacoes documentadas).
-   - `continuar` -> volte ao passo 2 com o prompt do analyst.
+   - Analyst diz que o **Portão 1** foi atingido -> invoque o `apex-deploy-runner`
+     mais uma vez com `--validate` (Portão 2) e passe o resultado de volta ao
+     `apex-coverage-analyst` para o veredito final.
+   - `concluido` (Portão 2 confirmado) -> pare o loop, peça ao `apex-state-recorder` o
+     registro final (`status: concluido`) e resuma ao usuario (cobertura final,
+     `deployWouldSucceed`, metodos cobertos, achados de producao, limitacoes
+     documentadas).
+   - `continuar` -> volte ao passo 2 com o prompt do analyst (inclui o caso do Portão 2
+     ter falhado apesar do Portão 1 — o prompt cita o que o `validateError`/
+     `uncoveredLines` do validate revelou).
    - `bloqueado` -> pare o loop, `apex-state-recorder` grava `status: pausado_bloqueado`
      com o motivo, e voce apresenta ao humano exatamente o que falta decidir.
 
