@@ -51,6 +51,20 @@ ficou abaixo do mínimo, ou uma dependência derruba a validação) apesar do Po
 passado, isso NÃO é conclusão — é `continuar`/`bloqueado`, e o motivo real vem em
 `validateError`.
 
+**Caso `coverageUnreadable`:** algumas versões do `sf` não expõem a cobertura no JSON do
+`deploy validate`. Nesse caso o script emite `coverageUnreadable: true` (e `coveredPercent`
+fica `null`), mas `deployWouldSucceed` continua válido — o validate já garante
+deployabilidade (ele **falha** se a cobertura estiver abaixo do mínimo da org). NÃO trave
+o loop nem conclua às cegas: use o `coveredPercent` **já confirmado no Portão 1** (`apex
+run test`, que só chegou aqui por estar ≥99) para o critério de 99%. Ou seja, conclua com
+`deployWouldSucceed == true` **e** `failures == []` **e** (`coveredPercent` do validate
+≥99 **ou**, se `coverageUnreadable`, o `coveredPercent` do Portão 1 ≥99).
+
+> **Trava estrutural (guard):** `scripts/guard.mjs` (`classifyConclusion`) BLOQUEIA
+> (`ask`) qualquer escrita de `status: concluido` no checkpoint sem
+> `portao_2_deploy_validate: confirmado` — independente do que o agente decidir. É o
+> cross-check que, na versão multiagente, era feito por um segundo agente.
+
 Rationale: `apex run test` é rápido para iterar, mas o veredito de "isso deployaria
 em produção?" é do `deploy validate`. Iterar com o primeiro e confirmar com o segundo
 dá velocidade nas iterações e a certeza real (o critério que a equipe usa) na
@@ -68,7 +82,7 @@ Regras:
   não peça confirmação, não liste o Portão 2 como opção, não termine o turno com uma
   pergunta. O Portão 2 é parte do critério de conclusão, não um extra opcional.
 - "Rodar o Portão 2" **NÃO** é um ponto de decisão humana (ver lista abaixo). Tratar
-  como se fosse é violação da autonomia de 100% do orquestrador.
+  como se fosse é violação da autonomia de 100% do loop.
 - Só existe pergunta ao humano DEPOIS do Portão 2 se ele **falhar** por limitação de
   ambiente que exija decisão (aí sim vira `bloqueado`) — nunca ANTES de rodá-lo.
 

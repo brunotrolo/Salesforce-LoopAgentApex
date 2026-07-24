@@ -743,4 +743,44 @@ existe tanto no repositorio-casa quanto na copia dentro do seu projeto Salesforc
   e confirmar que rodar num contexto só elimina os defeitos R-0039/40/41. Se confirmar,
   mover R-0037/R-0038/R-0042 conforme o resultado e mergear na `main`.
 
-<!-- A skill anexa novas propostas ABAIXO desta linha, como R-0043, R-0044... -->
+### R-0043 — Auditoria de consistência do híbrido: 2 furos fechados + 3 docs alinhados
+- **Status:** 🟢 Aprovada e aplicada (na branch `claude/apex-test-loop-consistencia`)
+- **Data:** 2026-07-24
+- **Gatilho:** após mergear o híbrido (R-0042), o usuário pediu uma auditoria de
+  consistência focada em estabilidade/governança — garantir que nenhuma etapa do loop
+  tem furo de lógica ou regra contraditória. O cruzamento de contratos (`SKILL.md` ↔
+  `apex-coverage.mjs` ↔ `guard.mjs` ↔ `run-state.md` ↔ `loop-rules.md` ↔ `settings.json`)
+  confirmou a espinha íntegra, mas achou 2 furos reais + 3 imprecisões de doc.
+- **Furos fechados:**
+  1. **Portão 2 — parser frágil + buraco de cobertura nula (ALTO).** No `--validate`,
+     `deployWouldSucceed` dependia só do exit do `sf`, mas `coveredPercent` era lido de
+     UMA estrutura (Metadata API). Se o `sf` devolvesse formato diferente, vinha
+     `coveredPercent: null` com `deployWouldSucceed: true` → o critério de conclusão não
+     confirmava e o loop podia travar/confundir. Nunca exercitado (o usuário sempre rodou
+     o `deploy validate` na mão). **Fix:** parser tenta 2 estruturas (Metadata API + estilo
+     `apex run test`); se nenhuma casar, emite `coverageUnreadable: true` + `hint` em vez
+     de fingir. `loop-rules.md`/`SKILL.md` agora definem o fallback: com `coverageUnreadable`,
+     usar o `coveredPercent` já confirmado no Portão 1 (deployWouldSucceed já garante
+     deployabilidade).
+  2. **Duplo portão era só instrução (MÉDIO).** Ao colapsar para 1 agente, perdeu-se o
+     cross-check que o `apex-state-recorder` fazia (recusar `concluido` sem Portão 2).
+     **Fix:** `guard.mjs` ganha `classifyConclusion` — bloqueia (`ask`) gravar
+     `status: concluido` no checkpoint sem `portao_2_deploy_validate: confirmado`,
+     inspecionando o conteúdo da escrita (Write `content` / Edit `new_string` + o arquivo
+     em disco, para não dar falso-positivo). Recupera o cross-check sem reintroduzir
+     subagentes. Testado com smoke test (8 casos, todos passam).
+- **Docs alinhados:** (3) `parallel-methods.md` ganhou aviso "AVANÇADO/opt-in, o padrão é
+  contexto único" (o fan-out reintroduz a fragilidade de R-0040) e trocou "orquestrador"
+  por "agente do loop"; (4) `SKILL.md` passo 2 agora explica que o JSON varia por fase
+  (`deploy` traz `deployErrors`/`blockedByDependency`; `test` traz `coveredPercent` etc.);
+  (5) sobra de "orquestrador" em `loop-rules.md` corrigida. Também generalizei a mensagem
+  de `ask` do `guard.mjs` (antes assumia sempre "sobrescrita de produção").
+- **Verificado OK (sem furo):** flags do script ↔ SKILL; allowlist do guard (4 caminhos)
+  ↔ run-state; `settings.json` (deny + hook) ↔ docs; `slowMs=8000` ↔ "≥8s"; `.gitignore`
+  cobre `.apex-test-loop/`; zero referências aos 5 agentes removidos fora deste ledger.
+- **Observação aberta:** o timeout de 60s do harness segue mitigado por instrução (≥300s
+  no `SKILL.md`), não por trava no script — é ambiental, aceito por ora.
+- **Próximo passo:** homologar (o `--validate` real numa org confirma qual das 2
+  estruturas o `sf` da org devolve e se o `coverageUnreadable` some).
+
+<!-- A skill anexa novas propostas ABAIXO desta linha, como R-0044, R-0045... -->

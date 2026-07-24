@@ -19,7 +19,7 @@
 // essenciais.
 // ---------------------------------------------------------------------------
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 // --- Camada de COMANDOS ----------------------------------------------------
 export const DESTRUCTIVE_RULES = [
@@ -176,9 +176,49 @@ export function classifyStateWrite(filePath) {
   return { blocked: false };
 }
 
+// --- Camada de CONCLUSAO (trava estrutural do duplo portao) -----------------
+// Recupera, num modelo de agente unico, o cross-check que antes era feito por um
+// segundo agente: e PROIBIDO gravar `status: concluido` no checkpoint sem o campo
+// `portao_2_deploy_validate: confirmado`. Sem isso, um modelo fraco poderia declarar
+// pronto so pelo Portao 1 (ja aconteceu em campo — ver RECOMMENDATIONS.md R-0039).
+// So se aplica ao checkpoint `state/<Classe>.md`. Decisao 'ask' (nao 'deny'): surge
+// ao humano para confirmar, em vez de travar duro — recupera o cross-check perdido.
+const STATE_CHECKPOINT_RE = /(^|[\\/])\.apex-test-loop[\\/]state[\\/][A-Za-z0-9_]+\.md$/;
+export function classifyConclusion(filePath, content, diskOverride) {
+  const p = String(filePath || '');
+  if (!STATE_CHECKPOINT_RE.test(p)) return { blocked: false };
+
+  const fragment = String(content || '');
+  // So interessa quando ESTA escrita marca `status: concluido`.
+  if (!/status:\s*concluido/i.test(fragment)) return { blocked: false };
+
+  // Um Edit pode trazer so um fragmento — combine com o arquivo em disco (estado
+  // anterior) para nao dar falso-positivo se o portao_2 ja foi confirmado antes.
+  const disk = diskOverride !== undefined ? diskOverride : safeRead(p);
+  const combined = fragment + '\n' + disk;
+  if (/portao_2_deploy_validate:\s*confirmado/i.test(combined)) return { blocked: false };
+
+  return {
+    blocked: true,
+    decision: 'ask',
+    why:
+      'checkpoint sendo marcado como `status: concluido` SEM `portao_2_deploy_validate: ' +
+      'confirmado`. O Portao 2 (sf project deploy validate, check-only) e OBRIGATORIO antes ' +
+      'de concluir — bater 99% no Portao 1 (apex run test) nao basta. Rode o --validate primeiro',
+  };
+}
+
 function baseName(p) {
   const parts = String(p).split(/[\\/]/);
   return parts[parts.length - 1] || String(p);
+}
+
+function safeRead(p) {
+  try {
+    return readFileSync(p, 'utf8');
+  } catch {
+    return '';
+  }
 }
 
 function fileExists(p) {
@@ -193,18 +233,17 @@ function fileExists(p) {
 function reasonMessage(verdict) {
   if (verdict.decision === 'ask') {
     return (
-      'ATENCAO (apex-test-loop): esta acao SOBRESCREVE/EDITA producao existente — ' +
+      'ATENCAO (apex-test-loop): esta acao precisa de confirmacao — ' +
       verdict.why +
-      '. A apex-test-loop nunca edita producao; se isto e intencional (ex.: refatorar ' +
-      'via platform-apex-generate), aprove. Aprovar por engano reintroduz o bug de ' +
-      'sobrescrever a classe sob teste — na duvida, recuse.'
+      '. Na duvida, recuse: aprovar por engano pode reintroduzir um bug ' +
+      '(sobrescrever producao) ou furar uma regra do loop (concluir sem o Portao 2).'
     );
   }
   return (
-    'BLOQUEADO pela skill apex-test-loop: acao destrutiva proibida — ' +
+    'BLOQUEADO pela skill apex-test-loop: acao proibida — ' +
     verdict.why +
-    '. Nunca apagar/mover/deletar classe de producao, org ou registros. Se realmente ' +
-    'precisa, faca manualmente/fora do agente, com revisao humana.'
+    '. Nunca apagar/mover/deletar classe de producao, org ou registros, nem gravar ' +
+    'estado fora da allowlist. Se realmente precisa, faca manualmente, com revisao humana.'
   );
 }
 
@@ -225,6 +264,9 @@ function runHook() {
     } else if (ti.file_path !== undefined) {
       verdict = classifyWrite(ti.file_path);
       if (!verdict.blocked) verdict = classifyStateWrite(ti.file_path);
+      // Write traz o conteudo em `content`; Edit, em `new_string`.
+      if (!verdict.blocked)
+        verdict = classifyConclusion(ti.file_path, ti.content ?? ti.new_string);
     } else {
       // fallback: varre o JSON inteiro por padrao de comando destrutivo
       verdict = classify(JSON.stringify(ti));
