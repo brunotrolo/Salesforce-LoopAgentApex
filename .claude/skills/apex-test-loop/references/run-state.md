@@ -94,6 +94,11 @@ possível escrever `concluido` sem decidir explicitamente esse valor. Se você b
 Portão 1 mas ainda não rodou o `--validate`, o status correto é `em_andamento` com o
 `Proximo passo` = "rodar deploy validate (Portão 2)" — nunca `concluido`.
 
+> **Reforço estrutural (guard):** isto não depende só de disciplina. `scripts/guard.mjs`
+> (`classifyConclusion`) inspeciona toda escrita no checkpoint e **bloqueia** (`ask`)
+> gravar `status: concluido` sem `portao_2_deploy_validate: confirmado` no arquivo. É o
+> cross-check que, na versão multiagente, um segundo agente fazia.
+
 ## Regras
 
 - **Atualize DE VERDADE a cada iteracao** — um estado velho e pior que nenhum

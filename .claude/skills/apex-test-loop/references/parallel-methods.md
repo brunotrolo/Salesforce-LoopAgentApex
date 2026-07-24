@@ -1,11 +1,21 @@
 # Decomposicao por metodo (fan-out) — para classes grandes com muitos metodos independentes
 
+> ⚠️ **AVANCADO e OPT-IN. O padrao e contexto unico (ver `SKILL.md`).** Este documento
+> descreve um fan-out de sub-agentes via `Workflow` — que **reintroduz exatamente a
+> fragilidade de passagem de contexto** que motivou a volta ao agente unico (regras que
+> nao viajam pro sub-agente, deploy concorrente, escrita concorrente no mesmo arquivo —
+> ver `RECOMMENDATIONS.md` R-0040/R-0042). Para a grande maioria das classes, incluindo
+> grandes, **fique no loop sequencial de contexto unico**: apenas autore mais cenarios
+> por iteracao antes de deployar. So considere este fan-out se a classe for realmente
+> enorme (aprox. >20-30 metodos independentes) E voce aceitar montar cada prompt de
+> sub-agente com TODAS as regras embutidas (abaixo). Na duvida, NAO use.
+
 Uma classe com dezenas de metodos (aprendido em campo: 31 metodos, ~1064 linhas nao
-cobertas) e um caso legitimo de **paralelizacao** — diferente do loop de cobertura em
-si, que e sequencial (iteracao N depende do resultado da N-1). Testar `metodoA` e
-`metodoB` sao trabalhos **independentes** quando os metodos nao compartilham estado
-mutavel nem dependem de ordem de execucao. Isso e o eixo certo para o `Workflow`
-(fan-out de sub-agentes).
+cobertas) pode ser um caso de **paralelizacao da AUTORIA** — diferente do loop de
+cobertura em si, que e sequencial (iteracao N depende do resultado da N-1). Testar
+`metodoA` e `metodoB` sao trabalhos **independentes** quando os metodos nao compartilham
+estado mutavel nem dependem de ordem de execucao. Esse e o unico eixo em que o `Workflow`
+(fan-out de sub-agentes) faz sentido — e mesmo assim so com as guardas abaixo.
 
 ## Quando usar
 
@@ -39,7 +49,7 @@ Fase 1 — AUTORIA (paralelo, seguro):
   teste (texto), NAO escrever direto no arquivo compartilhado nem fazer deploy.
 
 Fase 2 — MERGE (sequencial, um so passo):
-  voce (o orquestrador) recebe os retornos de todos os agentes e monta
+  voce (o agente do loop) recebe os retornos de todos os agentes e monta
   <Classe>Test.cls UMA vez, resolvendo nomes duplicados/conflitos de metodo.
 
 Fase 3 — DEPLOY + MEDIR (sequencial, um so passo):
@@ -67,4 +77,4 @@ Fase 4 — CHECKPOINT (sequencial, um so passo):
   guardas de portabilidade sao permitidas e asserts sao opcionais — o objetivo e
   executar as linhas-alvo e PASSAR.
 - Se o metodo tiver bloqueio de runtime (Flow, config ausente): reportar de volta
-  ao orquestrador, nao decidir sozinho (`references/runtime-blockers.md`).
+  ao agente do loop, nao decidir sozinho (`references/runtime-blockers.md`).

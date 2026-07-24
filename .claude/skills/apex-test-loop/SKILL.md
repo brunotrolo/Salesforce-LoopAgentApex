@@ -73,8 +73,10 @@ drip-feed (deploy prematuro), crítico com modelos menores.
    ⚠️ **Timeout:** o run é síncrono e testes de callout podem levar vários segundos cada
    — use um timeout generoso (≥ 300s) na chamada do comando. Se o script não puder rodar
    (Node ausente, conflito de formato de source), use o fallback de `references/sf-cli-and-coverage.md`.
-   O JSON traz `coveredPercent`, `uncoveredLines`, `failures`, `slowTests`,
-   `blockedByDependency`, `deployErrors`.
+   O JSON emitido depende da **fase** (campo `phase`): se o deploy da classe de teste
+   **falhar**, vem `phase: "deploy"` com `deployErrors` e `blockedByDependency`; se o deploy
+   passar e o teste rodar, vem `phase: "test"` com `coveredPercent`, `uncoveredLines`,
+   `failures` e `slowTests`. Trate cada fase pelo que ela traz.
 3. **Analisar** o JSON + o histórico do checkpoint e decidir (ver `loop-rules.md` e
    `references/runtime-blockers.md`):
    - Deploy falhou na própria classe de teste (compilação) → corrija citando `deployErrors`.
@@ -113,12 +115,19 @@ Detalhe completo em `loop-rules.md`. Resumo operacional:
   É `sf project deploy validate --test-level RunSpecifiedTests` (check-only, não grava na
   org). Só declare `concluido` com `deployWouldSucceed == true` **e** `coveredPercent >= 99`
   **e** `failures == []` do `phase: "validate"`, e grave `portao_2_deploy_validate: confirmado`.
-  Se o Portão 2 falhar apesar do Portão 1 (ex.: `validateError` sobre cobertura agregada
-  da org ou dependência), NÃO é conclusão — é continuar (citando o `validateError`) ou
-  bloqueado (se for limitação de ambiente que exige decisão humana).
+  - Se o Portão 2 **falhar** apesar do Portão 1 (ex.: `validateError` sobre cobertura
+    agregada da org ou dependência), NÃO é conclusão — é continuar (citando o
+    `validateError`) ou bloqueado (se for limitação de ambiente que exige decisão humana).
+  - Se vier `coverageUnreadable: true` (o `sf` não expôs a cobertura no JSON do validate),
+    NÃO trave: `deployWouldSucceed == true` já confirma deployabilidade; use o
+    `coveredPercent` **já confirmado no Portão 1** (≥99) para o critério de 99%. Conclua
+    com `deployWouldSucceed == true` **e** `failures == []` **e** (cobertura do validate ≥99
+    **ou**, se ilegível, a do Portão 1 ≥99).
 
 **Nunca** rode `--validate` a cada iteração (é mais pesado) — só uma vez, ao final.
-`status: concluido` EXIGE `portao_2_deploy_validate: confirmado`.
+`status: concluido` EXIGE `portao_2_deploy_validate: confirmado` — e isso é **reforçado
+pelo `guard.mjs`** (`classifyConclusion`): tentar gravar `concluido` sem o Portão 2
+confirmado é bloqueado (`ask`), independente do que você decidir.
 
 ## Autonomia — 100% autônomo entre os pontos nomeados
 

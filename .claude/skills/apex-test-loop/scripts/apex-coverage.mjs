@@ -146,23 +146,63 @@ if (doValidate) {
   const result = vj?.result || {};
   const wouldSucceed = v.status === 0 && vj && vj.status === 0;
 
-  // Resultado dos testes dentro da validacao (estrutura difere do `apex run test`).
   const rtr = result.details?.runTestResult || result.runTestResult || {};
-  const cov = Array.isArray(rtr.codeCoverage) ? rtr.codeCoverage : [];
-  const entry = cov.find((c) => (c.name || c.Name) === className);
 
+  // A cobertura do `deploy validate --json` pode vir em MAIS DE UMA estrutura,
+  // dependendo da versao do sf e das flags (--coverage-formatters). NAO assumimos
+  // uma so — tentamos as conhecidas e, se NENHUMA casar, sinalizamos
+  // `coverageUnreadable` em vez de fingir 0/100 (isso travava/confundia o loop):
+  //   (a) Metadata API: rtr.codeCoverage[] com numLocations/numLocationsNotCovered/
+  //       locationsNotCovered[].line
+  //   (b) estilo `apex run test`: coverage[].lines { "3":1, "7":0 } (quando o
+  //       coverage-formatters injeta o relatorio no result)
   let coveredPercent = null;
   let uncoveredLines = [];
-  if (entry) {
-    const total = Number(entry.numLocations ?? 0);
-    const notCovered = Number(entry.numLocationsNotCovered ?? 0);
+
+  // (a) estrutura da Metadata API (a mais comum no deploy validate)
+  const covA = Array.isArray(rtr.codeCoverage)
+    ? rtr.codeCoverage
+    : rtr.codeCoverage
+      ? [rtr.codeCoverage]
+      : [];
+  const entryA = covA.find((c) => (c.name || c.Name) === className);
+  if (entryA && entryA.numLocations != null) {
+    const total = Number(entryA.numLocations ?? 0);
+    const notCovered = Number(entryA.numLocationsNotCovered ?? 0);
     coveredPercent = total ? Math.round(((total - notCovered) / total) * 100) : null;
-    const locs = entry.locationsNotCovered || [];
+    const locs = entryA.locationsNotCovered || [];
     uncoveredLines = (Array.isArray(locs) ? locs : [locs])
       .map((l) => Number(l?.line ?? l))
       .filter((n) => Number.isFinite(n))
       .sort((a, b) => a - b);
   }
+
+  // (b) fallback: estrutura estilo `apex run test` (mapa de linhas), em varios
+  //     caminhos possiveis do JSON.
+  if (coveredPercent == null) {
+    const covBraw =
+      result.coverage?.coverage || result.details?.coverage?.coverage || result.coverage || [];
+    const covB = Array.isArray(covBraw) ? covBraw : [];
+    const entryB = covB.find((c) => (c.name || c.Name) === className);
+    if (entryB) {
+      const lines = entryB.lines || {};
+      const nums = Object.keys(lines);
+      if (nums.length) {
+        uncoveredLines = nums
+          .filter((n) => Number(lines[n]) === 0)
+          .map(Number)
+          .sort((a, b) => a - b);
+        const totalLines = entryB.totalLines ?? nums.length;
+        const coveredLines = entryB.totalCovered ?? nums.length - uncoveredLines.length;
+        coveredPercent =
+          entryB.coveredPercent ?? (totalLines ? Math.round((coveredLines / totalLines) * 100) : null);
+      } else if (entryB.coveredPercent != null) {
+        coveredPercent = Number(entryB.coveredPercent);
+      }
+    }
+  }
+
+  const coverageUnreadable = coveredPercent == null;
 
   const rtFailures = Array.isArray(rtr.failures) ? rtr.failures : rtr.failures ? [rtr.failures] : [];
   const failures = rtFailures.map((f) => ({
@@ -178,6 +218,10 @@ if (doValidate) {
       deployWouldSucceed: wouldSucceed,
       class: className,
       coveredPercent,
+      // true quando o validate rodou mas a cobertura NAO pode ser lida do JSON
+      // (versao/estrutura do sf diferente). O loop NAO deve concluir cegamente:
+      // use o coveredPercent do Portao 1 (apex run test) para o criterio de 99%.
+      coverageUnreadable: coverageUnreadable || undefined,
       uncoveredLines,
       testsRan: Number(rtr.numTestsRun ?? 0) || undefined,
       failing: Number(rtr.numFailures ?? failures.length) || 0,
@@ -187,9 +231,20 @@ if (doValidate) {
       validateError: wouldSucceed
         ? undefined
         : vj?.message || result.errorMessage || 'Validacao de deploy falhou. Veja "raw".',
-      raw: wouldSucceed ? undefined : (v.stdout || v.stderr || '').slice(0, 4000),
+      hint:
+        wouldSucceed && coverageUnreadable
+          ? 'deploy validate PASSOU (deployWouldSucceed=true), mas a cobertura nao pode ser ' +
+            'lida do JSON do validate nesta versao do sf. NAO trave nem conclua as cegas: o ' +
+            'Portao 2 confirma a DEPLOYABILIDADE; para o criterio de >=99% use o coveredPercent ' +
+            'ja confirmado no Portao 1 (apex run test). Veja "raw" para inspecionar.'
+          : undefined,
+      // Em falha OU cobertura ilegivel, preserve o stdout cru para inspecao.
+      raw:
+        !wouldSucceed || coverageUnreadable
+          ? (v.stdout || v.stderr || '').slice(0, 4000)
+          : undefined,
     },
-    wouldSucceed && (coveredPercent ?? 0) >= 99 && failures.length === 0 ? 0 : 1
+    wouldSucceed && failures.length === 0 && (coveredPercent ?? 0) >= 99 ? 0 : 1
   );
 }
 
